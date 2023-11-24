@@ -73,3 +73,5 @@ crashlytics-build.properties
 
 # Paid Assets
 OpenAIConfiguration.*
+/FrostweepGames
+FrostweepGames*

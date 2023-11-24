@@ -1,11 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 using OpenAI;
 using OpenAI.Audio;
-using OpenAI.Chat;
-using Microphone = FrostweepGames.MicrophonePro.Microphone;
-using System.Collections;
+using Microphone = FrostweepGames.MicrophonePro.Microphone; // Required for using Microphone on WebGL. Purchased on https://assetstore.unity.com/packages/tools/input-management/microphone-pro-webgl-mobiles-desktop-79989
 
 public class SimpleRecording : MonoBehaviour
 {
