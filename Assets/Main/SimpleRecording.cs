@@ -63,8 +63,8 @@ public class SimpleRecording : MonoBehaviour
             //recording.clip,
             model: "whisper-1",
             responseFormat: AudioResponseFormat.Json,
-            temperature: 0.1f
-            //language: "en"
+            temperature: 0.1f,
+            language: "en"
         );
         string result = await openAI.AudioEndpoint.CreateTranscriptionAsync(transcriptionRequest);
         Debug.Log(result);
