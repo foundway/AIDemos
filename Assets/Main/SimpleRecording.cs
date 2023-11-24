@@ -18,6 +18,7 @@ public class SimpleRecording : MonoBehaviour
         recording = gameObject.AddComponent<AudioSource>();
         playback = gameObject.AddComponent<AudioSource>();
         openAI = new OpenAIClient();
+        var forceInitiateMicrophone = Microphone.GetPosition("");
     }
 
     public void StartRecording()
