@@ -33,8 +33,9 @@ public class SimpleRecording : MonoBehaviour
         StartCoroutine(SaveWavAsync(recording));
     }
 
-    public void PlayTestAudio() {
-        testAudio.Play();
+    public void PlayTestAudio() 
+    {
+        testAudio.PlayOneShot(testAudio.clip);
         StartCoroutine(SaveWavAsync(testAudio));
     }
 

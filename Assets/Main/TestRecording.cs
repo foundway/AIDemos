@@ -4,19 +4,15 @@ using UnityEngine.EventSystems;
 using TMPro;
 using System;
 using System.Collections.Generic;
-using System.Collections;
 using System.Threading;
 using Utilities.Extensions;
 using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
 using OpenAI.Models;
-using Microphone = FrostweepGames.MicrophonePro.Microphone;
 
 public class TestRecording : MonoBehaviour
 {
-    [SerializeField] AudioSource recording;
-    //[SerializeField] AudioSource monitor;
     [SerializeField] int recordingLength = 10;
     [SerializeField] float micSensitivity = 100.0f; // Used to adjust the sensitivity of the mic volume
     [SerializeField] float recordingVolumeThreshold = 0.8f; // Mic volume threshold for triggering recording
@@ -34,72 +30,51 @@ public class TestRecording : MonoBehaviour
     //private OpenAIClient openAI;
     private readonly List<Message> chatMessages = new List<Message>();
     private CancellationTokenSource lifetimeCancellationTokenSource;
+    AudioSource recording;
 
     OpenAIClient openAI;
+    string audioPath;
     string result;
     bool isResponsePlaying = false;
     bool isResponseProcessing = false;
     bool isRecording = false;
     float loudness = 0f;
     float timeBelowThreshold = 1.0f; // Used to keep track of how long the mic volume has been below the threshold
-    bool isAudioDataLoaded = false;
-    AudioSource playback;
-    string micDevice = "";
-    //AudioSource monitor;
 
     // Start recording with built-in Microphone and play the recorded audio right away
     void Start()
     {
-        playback = gameObject.AddComponent<AudioSource>();
-        //monitor = gameObject.AddComponent<AudioSource>();
-        //Microphone.PermissionChangedEvent += PermissionChangedEvent;
-
         openAI = new OpenAIClient();
-    }
+        recording = gameObject.AddComponent<AudioSource>();
 
-    public void StartMonitoring() { 
         MonitorMic();
-        StartCoroutine(CheckAudioDataLoadState());
     }
 
-    void Update()
+    private void Update()
     {
         UpdateRecording();
     }
 
-    //private void OnDestroy()
-    //{
-    //    //Microphone.RecordStreamDataEvent -= RecordStreamDataEventHandler;
-    //    //Microphone.PermissionChangedEvent -= PermissionChangedEvent;
-    //}
-
     void MonitorMic()
     {
         recording.volume = 0; // Mute the first audio source to prevent mic monitoring
-        recording.clip = Microphone.Start(micDevice, true, recordingLength, recordingSampleRate);
-        //while (!(Microphone.GetPosition(null) > 0)) { }
+        recording.clip = Microphone.Start(null, true, recordingLength, recordingSampleRate);
+        recording.loop = true;
+        while (!(Microphone.GetPosition(null) > 0)) { } // this is important but need a better way
         recording.Play();
-        Debug.Log("Monitoring Microphone");
     }
 
     void UpdateRecording()
     {
-        if (!isAudioDataLoaded) {
-            return;
-	    }
-
         if (!isResponsePlaying)
         {
-            //loudness = GetAveragedVolume() * micSensitivity;
-            //StartCoroutine(GetAveragedVolume());
-            GetAveragedVolume();
+            loudness = GetAveragedVolume() * micSensitivity;
         }
 
         if (!isRecording && !isResponseProcessing && loudness > recordingVolumeThreshold)
         {
             isRecording = true;
-            //recording.Stop(); // Maybe I need to reset the audioClip.
-            recording.clip = Microphone.Start(micDevice, true, recordingLength, recordingSampleRate);
+            //StartRecording();
             Debug.Log("Start Recording");
         }
         else if (isRecording && loudness < recordingVolumeThreshold)
@@ -121,86 +96,32 @@ public class TestRecording : MonoBehaviour
         }
     }
 
-    //float GetAveragedVolume()
-    void GetAveragedVolume()
+    float GetAveragedVolume()
     {
-        //Debug.Log("Getting Mic position");
-        float[] data = new float[512];
-        int micPosition = Microphone.GetPosition(micDevice) - (512+1); // Get the position 1024 samples ago
-        if (micPosition < 0) {
-            loudness = 0f;
-            return; // Return 0 if the position is negative
-	    }
-        //Debug.Log("Getting audio data");
+        float[] data = new float[1024];
+        int micPosition = Microphone.GetPosition(null) - (1024 + 1); // Get the position 1024 samples ago
+        if (micPosition < 0)
+        {
+            return 0; // Return 0 if the position is negative
+        }
         recording.clip.GetData(data, micPosition);
         float a = 0;
-        foreach (float s in data) {
+        foreach (float s in data)
+        {
             a += Mathf.Abs(s);
         }
-        //Debug.Log("Calculating loudness");
-        //return a / 1024;
-        loudness = a / 512 * micSensitivity;
+        return a / 1024;
     }
-
-    IEnumerator CheckAudioDataLoadState() {
-        while (recording.clip.loadState != AudioDataLoadState.Loaded)
-        {
-            yield return null;
-        }
-        isAudioDataLoaded = true;
-        Debug.Log("Audio data loaded");
-    }
-
-    //IEnumerator GetAveragedVolume()
-    //{
-    //    while (recording.clip.loadState != AudioDataLoadState.Loaded) {
-    //        yield return null;
-    //    }
-
-    //    float[] data = new float[1024];
-    //    int micPosition = Microphone.GetPosition(null) - (1024+1); // Get the position 1024 samples ago
-    //    if (micPosition < 0) {
-    //        //return 0; // Return 0 if the position is negative
-    //        loudness = 0f;
-	   // } else { 
-    //        recording.clip.GetData(data, micPosition);
-    //        float a = 0;
-    //        foreach (float s in data) {
-    //            a += Mathf.Abs(s);
-    //        }
-    //        //return a / 1024;
-    //        loudness = a / 1024 * micSensitivity;
-	   // }
-    //}
 
     public void StartRecording()
     {
-        recording.clip = Microphone.Start(micDevice, true, recordingLength, recordingSampleRate);
+        recording.clip = Microphone.Start(Microphone.devices[0], true, recordingLength, recordingSampleRate);
     }
-
-    //public void StopRecording()
-    //{
-    //    Microphone.End(Microphone.devices[0]);
-    //    recording.Stop();
-    //    StartCoroutine(AsyncSaveWav());
-    //}
 
     public void StopRecording()
     {
-        Microphone.End(micDevice);
-        playback.PlayOneShot(recording.clip);
-        SaveWav.Save(Application.persistentDataPath + "/recordingCache.wav", recording.clip, true);
-        Debug.Log(Application.persistentDataPath + "/RecordingCache.wav");
-        TranscriptAudio();
-        MonitorMic();
-    }
-
-    IEnumerator AsyncSaveWav() {
-        while (recording.clip.loadState != AudioDataLoadState.Loaded)
-        {
-            yield return null;
-        }
-        SaveWav.Save(Application.persistentDataPath + "/recordingCache.wav", recording.clip, true);
+        Microphone.End(Microphone.devices[0]);
+        SaveWav.Save("recordingCache", recording.clip, true);
         TranscriptAudio();
         MonitorMic();
     }
@@ -215,29 +136,10 @@ public class TestRecording : MonoBehaviour
             temperature: 0.1f,
             language: "en"
         );
-        //AudioTranscriptionRequest transcriptionRequest = new AudioTranscriptionRequest(
-        //    recording.clip,
-        //    model: "whisper-1",
-        //    responseFormat: AudioResponseFormat.Json,
-        //    temperature: 0.1f,
-        //    language: "en"
-        //);
+
         result = await openAI.AudioEndpoint.CreateTranscriptionAsync(transcriptionRequest);
         Debug.Log(result);
         closeCaptionUI.text = result;
         isResponseProcessing = false;
-    }
-
-    private void PermissionChangedEvent(bool granted)
-    {
-        // handle current permission status
-
-        //if (permissionGranted != granted)
-        //    RefreshMicrophoneDevicesButtonOnclickHandler();
-
-        //permissionGranted = granted;
-
-        Debug.Log($"Permission state changed on: {granted}");
-        MonitorMic();
     }
 }
