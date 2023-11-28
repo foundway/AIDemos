@@ -507,10 +507,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 704d38f64079f48278a99a936a08d25d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  recording: {fileID: 899882958}
   recordingLength: 20
-  micSensitivity: 50
-  recordingVolumeThreshold: 1
-  recordingTimeThreshold: 2
+  micSensitivity: 100
+  recordingVolumeThreshold: 0.5
+  recordingTimeThreshold: 1
   recordingSampleRate: 44100
   closeCaptionUI: {fileID: 1439650122}
   enableDebug: 0
@@ -519,6 +520,7 @@ MonoBehaviour:
   contentArea: {fileID: 0}
   scrollView: {fileID: 0}
   audioSource: {fileID: 0}
+  monitorSampleSize: 512
 --- !u!4 &899882957
 Transform:
   m_ObjectHideFlags: 0
@@ -548,7 +550,7 @@ AudioSource:
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -849,8 +851,8 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 899882956}
         m_TargetAssemblyTypeName: TestRecording, Assembly-CSharp
-        m_MethodName: SetAudioMonitorState
-        m_Mode: 6
+        m_MethodName: StartMonitoring
+        m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine

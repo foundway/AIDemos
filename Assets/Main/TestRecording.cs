@@ -4,20 +4,23 @@ using UnityEngine.EventSystems;
 using TMPro;
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Threading;
 using Utilities.Extensions;
 using OpenAI;
 using OpenAI.Audio;
 using OpenAI.Chat;
 using OpenAI.Models;
+using Microphone = FrostweepGames.MicrophonePro.Microphone; // Required for using Microphone on WebGL. Purchased on https://assetstore.unity.com/packages/tools/input-management/microphone-pro-webgl-mobiles-desktop-7998
 
 public class TestRecording : MonoBehaviour
 {
-    [SerializeField] int recordingLength = 10;
+    [SerializeField] AudioSource recording;
+    [SerializeField] int recordingLength = 20;
     [SerializeField] float micSensitivity = 100.0f; // Used to adjust the sensitivity of the mic volume
     [SerializeField] float recordingVolumeThreshold = 0.8f; // Mic volume threshold for triggering recording
     [SerializeField] float recordingTimeThreshold = 1.5f; // Time threshold for stopping recording after mic volume drops below threshold
-    [SerializeField] int recordingSampleRate = 16000;
+    [SerializeField] int recordingSampleRate = 44100;
     [SerializeField] TextMeshProUGUI closeCaptionUI;
 
     [SerializeField] private bool enableDebug;
@@ -27,10 +30,11 @@ public class TestRecording : MonoBehaviour
     [SerializeField] private ScrollRect scrollView;
     [SerializeField] private AudioSource audioSource;
 
+    [SerializeField] int monitorSampleSize = 512;
+
     //private OpenAIClient openAI;
     private readonly List<Message> chatMessages = new List<Message>();
     private CancellationTokenSource lifetimeCancellationTokenSource;
-    AudioSource recording;
 
     OpenAIClient openAI;
     string audioPath;
@@ -40,17 +44,22 @@ public class TestRecording : MonoBehaviour
     bool isRecording = false;
     float loudness = 0f;
     float timeBelowThreshold = 1.0f; // Used to keep track of how long the mic volume has been below the threshold
+    bool isAudioDataLoaded;
+    bool isMonitoringMic;
 
     // Start recording with built-in Microphone and play the recorded audio right away
     void Start()
     {
         openAI = new OpenAIClient();
-        recording = gameObject.AddComponent<AudioSource>();
+        var forceInitiateMicrophone = Microphone.GetPosition("");
+    }
 
+    public void StartMonitoring() 
+    {
         MonitorMic();
     }
 
-    private void Update()
+    void Update()
     {
         UpdateRecording();
     }
@@ -58,17 +67,27 @@ public class TestRecording : MonoBehaviour
     void MonitorMic()
     {
         recording.volume = 0; // Mute the first audio source to prevent mic monitoring
-        recording.clip = Microphone.Start(null, true, recordingLength, recordingSampleRate);
+        recording.clip = Microphone.Start(Microphone.devices[0], true, recordingLength, recordingSampleRate);
         recording.loop = true;
-        while (!(Microphone.GetPosition(null) > 0)) { } // this is important but need a better way
+        //while (!(Microphone.GetPosition(null) > 0)) { } // this is important but need a better way
         recording.Play();
+        Debug.Log("Start Monitoring "+Microphone.devices[0]);
+
+        StartCoroutine(CheckAudioDataLoadState());
     }
 
     void UpdateRecording()
     {
+        if (!isAudioDataLoaded)
+        {
+            return;
+        }
+
         if (!isResponsePlaying)
         {
             loudness = GetAveragedVolume() * micSensitivity;
+            //Debug.Log("loudness = " + loudness);
+            //StartCoroutine(GetLoudnessAsync());
         }
 
         if (!isRecording && !isResponseProcessing && loudness > recordingVolumeThreshold)
@@ -96,13 +115,17 @@ public class TestRecording : MonoBehaviour
         }
     }
 
-    float GetAveragedVolume()
+    IEnumerator GetLoudnessAsync()
     {
-        float[] data = new float[1024];
-        int micPosition = Microphone.GetPosition(null) - (1024 + 1); // Get the position 1024 samples ago
+        while (recording.clip.loadState != AudioDataLoadState.Loaded)
+        {
+            yield return null;
+        }
+        float[] data = new float[monitorSampleSize];
+        int micPosition = Microphone.GetPosition(Microphone.devices[0]) - (monitorSampleSize + 1); // Get the position X samples ago
         if (micPosition < 0)
         {
-            return 0; // Return 0 if the position is negative
+            loudness = 0;
         }
         recording.clip.GetData(data, micPosition);
         float a = 0;
@@ -110,7 +133,31 @@ public class TestRecording : MonoBehaviour
         {
             a += Mathf.Abs(s);
         }
-        return a / 1024;
+        loudness = a / monitorSampleSize * micSensitivity;
+    }
+
+    float GetAveragedVolume()
+    {
+        //if (recording.clip.loadState != AudioDataLoadState.Loaded)
+        //{
+        //    Debug.Log("loadState = false");
+        //    return 0;
+        //}
+        float[] data = new float[monitorSampleSize];
+        int micPosition = Microphone.GetPosition(Microphone.devices[0]) - (monitorSampleSize + 1); // Get the position X samples ago
+        Debug.Log("Mic position = "+Microphone.GetPosition(Microphone.devices[0]));
+        if (micPosition < 0)
+        {
+            return 0; // Return 0 if the position is negative
+        }
+        Microphone.GetData(data, micPosition); // use this instead of audioClip.GetData which doesn't work in WebGL
+        float a = 0;
+        foreach (float s in data)
+        {
+            a += Mathf.Abs(s);
+        }
+        Debug.Log("Mic data of " + Microphone.devices[0] + " is " + a/monitorSampleSize);
+        return a / monitorSampleSize;
     }
 
     public void StartRecording()
@@ -121,9 +168,7 @@ public class TestRecording : MonoBehaviour
     public void StopRecording()
     {
         Microphone.End(Microphone.devices[0]);
-        SaveWav.Save("recordingCache", recording.clip, true);
-        TranscriptAudio();
-        MonitorMic();
+        StartCoroutine(SaveWavAsync(recording));
     }
 
     public async void TranscriptAudio()
@@ -141,5 +186,43 @@ public class TestRecording : MonoBehaviour
         Debug.Log(result);
         closeCaptionUI.text = result;
         isResponseProcessing = false;
+        MonitorMic(); // Resume monitor mic after getting the transcription
+    }
+
+    void PermissionChangedEvent(bool granted)
+    {
+        Debug.Log($"Permission state changed on: {granted}");
+    }
+
+    IEnumerator CheckAudioDataLoadState()
+    {
+        Debug.Log("Checking audio data load state at " + System.DateTime.Now);
+        while (recording.clip.loadState != AudioDataLoadState.Loaded)
+        {
+            yield return null;
+        }
+        isAudioDataLoaded = true;
+        Debug.Log("Audio data loaded at " + System.DateTime.Now);
+    }
+
+    IEnumerator WaitForMicPosition()
+    {
+        while (!(Microphone.GetPosition(Microphone.devices[0]) > 0))
+        {
+            yield return null;
+        }
+        recording.Play();
+        Debug.Log("Monitoring Microphone");
+        isMonitoringMic = true;
+    }
+
+    IEnumerator SaveWavAsync(AudioSource src) // Required for WebGL because AudioClip.GetData is async
+    {
+        while (recording.clip.loadState != AudioDataLoadState.Loaded)
+        {
+            yield return null;
+        }
+        SaveWav.Save("recordingCache", src.clip, true);
+        TranscriptAudio();
     }
 }
