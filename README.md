@@ -1,12 +1,7 @@
-# Demo for using Whisper with microphone on WebGL
+# Demos for my AI Researches
+## Conversation
+* [Mobi2 (conversation based virtual compainion](https://foundway.github.io/AIDemos/Mobi2)
+* [TTS (Simple)](https://foundway.github.io/AIDemos/Simple)
+* [Auto-detecting TTS (Automatic)](https://foundway.github.io/AIDemos/Auto)
+* [(BUG REPORT) Whisper on WebGL](https://foundway.github.io/AIDemos/TTS)
 
-* [DEMO (Simple)](https://foundway.github.io/WhisperWebGL/Simple)
-* [DEMO (Automatic)](https://foundway.github.io/WhisperWebGL/Auto)
-* [BUG REPORT (TTS)](https://foundway.github.io/WhisperWebGL/TTS)
-
-## Package Included
-* [com.openai.unity](https://openupm.com/packages/com.openai.unity/) on [OpenUMP](https://openupm.com/)
-  * NOTE: Add OpenAIConfiguration asset manually and paste the OpenAI API key
-
-## Packages Purchased Separately
-* [Microphone Pro](https://assetstore.unity.com/packages/tools/input-management/microphone-pro-webgl-mobiles-desktop-79989)
