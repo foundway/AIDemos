@@ -11,7 +11,10 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Main/SimpleRecording.unity
     guid: 2beed56a38b0a41d29875b0ad533ba72
-  - enabled: 1
+  - enabled: 0
     path: Assets/Main/SimpleTTS.unity
     guid: 00b3eb5af3ef54fc3a51f9256d4cadef
+  - enabled: 1
+    path: Assets/FrostweepGames/GCTextToSpeech/Examples/SimpleExample/GC_TextToSpeech_SimpleExample.unity
+    guid: 77ef26e21259246429d88cc2e3c1593d
   m_configObjects: {}
