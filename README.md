@@ -2,6 +2,7 @@
 
 * [DEMO (Simple)](https://foundway.github.io/WhisperWebGL/Simple)
 * [DEMO (Automatic)](https://foundway.github.io/WhisperWebGL/Auto)
+* [BUG REPORT (TTS)](https://foundway.github.io/WhisperWebGL/TTS)
 
 ## Package Included
 * [com.openai.unity](https://openupm.com/packages/com.openai.unity/) on [OpenUMP](https://openupm.com/)
